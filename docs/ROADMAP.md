@@ -1,13 +1,8 @@
-# LineFlex Development Roadmap
-
-This roadmap tracks implemented, partially implemented, and planned work. A checkbox is marked complete only when the capability is present and has been checked.
+﻿# LineFlex Development Roadmap
 
 ## Phase 0 — Repository foundation
 - [x] Create public repository
-- [x] Add initial README
-- [x] Add product brief
-- [x] Add research plan
-- [x] Add development roadmap
+- [x] Add README, product brief, research plan and roadmap
 
 ## Phase 1 — Research and scope
 - [ ] Verify competitor capabilities
@@ -16,48 +11,47 @@ This roadmap tracks implemented, partially implemented, and planned work. A chec
 - [ ] Define sample data and user roles
 - [ ] Freeze MVP requirements
 
-**Exit condition:** A narrow use case is supported by credible evidence and is not simply a duplicate of an existing product.
-
-## Phase 2 — Data model and prototype
-- [x] Create initial SQLite tables for factories and capability values
-- [x] Store factory name, location, stated monthly capacity, and capacity unit
-- [x] Store machine, process, material, and certification entries
-- [x] Register and list factory capability records in the local Streamlit app
-- [x] Search records by factory name, city, or state
-- [ ] Edit and delete factory records
+## Phase 2 — Factory Capability Registry
+- [x] Create SQLite factory and capability tables
+- [x] Register and retrieve factory records
+- [x] Record machines, processes, materials and certifications
+- [x] Search factories by name, city and state
+- [x] Edit factory details and capabilities
+- [x] Delete factories and associated capabilities
+- [x] Add validation for required fields and capacity
 - [ ] Add data provenance and verification labels
-- [ ] Define requirement, candidate, and qualification entities
+- [ ] Define requirement, candidate and qualification entities
 
-**Current result:** A local Factory Capability Registry works with user-entered/demo information. It is not yet a supplier qualification or production-transfer system.
-
-## Phase 3 — Core workflow
+## Phase 3 — Core manufacturing workflow
 - [ ] Add requirement entry
 - [ ] Compare requirements with capability records
-- [ ] Show matched, mismatched, and unknown fields
+- [ ] Show matched, mismatched and unknown fields
 - [ ] Add second-source qualification checklist
-- [ ] Add owners, dates, and evidence references
+- [ ] Add owners, dates and evidence references
 
-**Exit condition:** The prototype demonstrates one complete workflow using synthetic data without claiming automatic technical approval.
+## Phase 4 — Backend, quality and usability
+- [x] Build FastAPI backend
+- [x] Add factory CRUD API endpoints
+- [x] Add API and database tests
+- [x] Add input validation and error handling
+- [x] Document local setup and API usage
+- [x] Pin direct dependencies
+- [x] Verify 13 automated tests pass
+- [ ] Review deprecation warning from test client
+- [ ] Capture genuine application screenshots
+- [ ] Expand edge-case testing
 
-## Phase 4 — Quality and usability
-- [x] Add initial database tests for record creation/retrieval, city search, and basic validation
-- [x] Add pinned direct dependencies and local run instructions
-- [ ] Expand tests for duplicate entries, malformed data, and other edge cases
-- [ ] Improve validation and error handling
-- [ ] Document limitations and setup steps in full
-- [ ] Capture and store genuine application screenshots
-
-**Current test baseline:** Four database tests passed in the local run for the initial registry milestone.
-
-**Exit condition:** The documented local demo can be reproduced by another developer and its limitations are clear.
+**Current test result:** 13 passed, 0 failed, with one non-failing deprecation warning.
 
 ## Phase 5 — Deployment and evaluation
 - [ ] Review security and data-handling requirements
 - [ ] Decide whether deployment is appropriate
 - [ ] Deploy only with non-sensitive demo data
-- [ ] Collect structured feedback
+- [ ] Collect structured user feedback
 - [ ] Reassess product scope and commercial assumptions
 
-## Progress tracking
+## Important limitation
 
-Update this file only when a milestone is actually completed and can be demonstrated in the repository.
+LineFlex currently stores user-entered manufacturing information. It does not verify actual capacity, technical compatibility, supplier suitability or customer approval.
+
+Update this roadmap only when a feature has been implemented and tested.

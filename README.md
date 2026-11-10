@@ -1,133 +1,94 @@
-# LineFlex
+﻿# LineFlex
 
 ### Manufacturing Flexibility & Second-Source Readiness
 
 LineFlex is an early-stage project exploring how manufacturers can prepare for production changes and supplier disruption through structured capability information, scenario planning, and second-source qualification tracking.
 
-> **Project status:** Early local prototype. The first Factory Capability Registry is implemented with Streamlit and SQLite. The wider manufacturing-readiness workflow, market differentiation, and demand remain under research.
+> **Current status:** Working local Factory Capability Registry with Streamlit, SQLite and a FastAPI backend.
 
 ## What works today
 
-The first prototype provides a local **Factory Capability Registry**:
+- Register factories and their locations.
+- Record stated monthly production capacity and units.
+- Record machines, processes, materials and certifications.
+- Search and view factory records.
+- Edit factory details and capability entries.
+- Delete factory records and their associated capabilities.
+- Access factory records through REST API endpoints.
+- Validate required fields and positive finite capacity values.
 
-- Register a factory with its name and location.
-- Record stated monthly production capacity and its unit.
-- Record machines, processes, supported materials, and certifications.
-- View registered factories and their capability details.
-- Search factory records by name, city, or state.
-- View simple dashboard counts for registered factories, combined stated capacity, and unique processes.
+## Technology
 
-Factory records are stored in a local SQLite database. The current application creates records and displays/searches them; editing and deletion are not implemented yet.
+- Python 3.11
+- Streamlit
+- FastAPI
+- SQLite
+- Pandas
+- Pytest
+- Uvicorn
 
-### Run locally
-
-Requirements: Python 3.11 or a compatible Python version supported by the pinned packages.
+## Run locally
 
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+```
+
+Start the Streamlit application:
+
+```powershell
 python -m streamlit run app.py
 ```
 
-Open the local URL printed by Streamlit (normally `http://localhost:8501`).
+Start the API in a second terminal:
 
-### Run the tests
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn api:app --reload
+```
+
+Open:
+- Streamlit: http://localhost:8501
+- API documentation: http://127.0.0.1:8000/docs
+
+## API endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | /health | Health check |
+| POST | /factories | Create factory |
+| GET | /factories | List and search factories |
+| GET | /factories/{factory_id} | Read factory |
+| PUT | /factories/{factory_id} | Update factory |
+| DELETE | /factories/{factory_id} | Delete factory |
+
+## Tests
+
+Run:
 
 ```powershell
 python -m pytest tests -v
 ```
 
-The initial database test suite currently contains four tests covering factory creation/retrieval, city search, empty-name validation, and zero-capacity validation. The local run recorded for this milestone passed all four tests.
+The current local test run passed all 13 tests, covering API operations, database CRUD, search and validation.
 
-## The problem being explored
+## Planned modules
 
-Manufacturers may need to respond to sudden demand changes, production constraints, or the loss of a critical supplier. Responding can be difficult when factory capabilities, available capacity, alternative suppliers, and qualification records are spread across different systems or documents.
-
-LineFlex explores whether these activities can be brought into one practical workflow.
-
-## Proposed solution
-
-The longer-term concept is a workspace for organizing manufacturing readiness information and planning response actions.
-
-### Planned modules
-
-| Module | Purpose | Status |
-|---|---|---|
-| Factory Capability Passport | Record machines, processes, materials, certifications, and stated capacity | Initial registry prototype available |
-| Production Flexibility Planner | Model basic capacity and production-change scenarios using user-provided data | Planned |
-| Second-Source Readiness | Track alternative suppliers and outstanding qualification steps | Planned |
-| Qualification Workspace | Organize certificates, inspection records, and approval status | Planned |
-| Activation Workflow | Record owners, tasks, and decisions when a change is being considered | Planned |
-
-## What makes the concept worth exploring?
-
-The project will investigate the workflow gap between:
-- knowing that an alternative factory or supplier exists;
-- understanding whether it can meet a particular part or process requirement; and
-- tracking the evidence and customer approvals needed before a production switch.
-
-LineFlex will not assume that a supplier is interchangeable simply because it has similar equipment or spare capacity. Technical compatibility and customer-specific approval remain human-controlled decisions.
-
-## Intended users
-
-- Manufacturing operations and production-planning teams
-- Procurement and supplier-development teams
-- Component manufacturers and their customers
-- Business-continuity and supply-chain risk teams
-
-## Technology
-
-- Python 3.11 for application logic
-- Streamlit for the initial user interface
-- SQLite for local prototype storage
-- Pandas for tabular display
-- Pytest for automated tests
-
-FastAPI and PostgreSQL remain possible later options; they are not part of the current prototype.
-
-The prototype is designed to run locally on a standard laptop. No GPU or paid cloud service is required for the current feature.
+- Production Flexibility Planner
+- Second-Source Readiness
+- Qualification Workspace
+- Activation Workflow
 
 ## Current limitations
 
-- Capacity is user-entered information; the application does not validate actual available or free capacity.
-- The prototype does not verify machines, processes, materials, certificates, or supplier claims.
-- No engineering compatibility assessment, supplier approval, audit, or customer qualification is performed.
-- Editing and deleting factory records are not implemented.
-- Authentication, user roles, multi-user access, and deployment are not implemented.
-- The prototype uses sample/demo information only. Do not enter confidential factory or customer data.
+- Factory capacity and capabilities are user-entered and unverified.
+- No automatic engineering compatibility assessment is performed.
+- No supplier or certification claims are independently verified.
+- No authentication, roles or multi-user access.
+- No production deployment or customer approval workflow.
+- Market demand and willingness to pay remain unvalidated.
 
-## Development roadmap
+LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Real production transfers require appropriate technical checks and customer approvals.
 
-See [ROADMAP.md](docs/ROADMAP.md) for completed and remaining milestones.
-
-## Responsible use
-
-LineFlex is a planning and record-keeping concept. It is not a certification authority, engineering approval system, or guarantee of supplier suitability. Any real production transfer would require the relevant technical checks, audits, contractual decisions, and customer approvals.
-
-Market demand, differentiation, and willingness to pay have not yet been validated with customers.
-
-## Repository structure
-
-```text
-LineFlex/
-├── app.py
-├── database.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-├── docs/
-│   ├── PRODUCT_BRIEF.md
-│   ├── RESEARCH_PLAN.md
-│   └── ROADMAP.md
-└── tests/
-    └── test_database.py
-```
-
-## Contributing
-
-This is currently an individual research and development project. Issues and constructive feedback are welcome.
-
-## License
-
-No license has been selected yet. Until a license is added, normal copyright restrictions apply; reuse is not automatically permitted.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress.
