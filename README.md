@@ -92,3 +92,14 @@ The current local test run passed all 13 tests, covering API operations, databas
 LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Real production transfers require appropriate technical checks and customer approvals.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress.
+
+## Factory data review metadata
+
+The API also supports factory-level provenance and review labels:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | /factories/{factory_id}/review | Read source and review metadata |
+| PUT | /factories/{factory_id}/review | Save source, status, evidence reference and reviewer label |
+
+Review statuses are user-entered labels: Unverified, Self-declared, Evidence attached, and Reviewed. An evidence reference is a text reference only; the prototype does not upload, inspect, authenticate or independently verify documents. A Reviewed label records a user's declaration, not LineFlex certification.

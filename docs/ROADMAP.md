@@ -1,4 +1,4 @@
-﻿# LineFlex Development Roadmap
+# LineFlex Development Roadmap
 
 ## Phase 0 — Repository foundation
 - [x] Create public repository
@@ -19,7 +19,7 @@
 - [x] Edit factory details and capabilities
 - [x] Delete factories and associated capabilities
 - [x] Add validation for required fields and capacity
-- [ ] Add data provenance and verification labels
+- [x] Add factory-level data-source and review-status metadata API (user-entered labels, not independent verification)
 - [ ] Define requirement, candidate and qualification entities
 
 ## Phase 3 — Core manufacturing workflow

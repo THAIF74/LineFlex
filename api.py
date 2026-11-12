@@ -89,3 +89,55 @@ def remove_factory(factory_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Factory not found")
     return {"message": "Factory deleted", "factory_id": factory_id}
+# Factory-level data provenance and review metadata.
+from typing import Literal
+
+from provenance import get_factory_review, save_factory_review
+
+
+class FactoryReviewPayload(BaseModel):
+    data_source: str = Field(min_length=1, max_length=120)
+    verification_status: Literal[
+        "Unverified", "Self-declared", "Evidence attached", "Reviewed"
+    ] = "Unverified"
+    evidence_reference: str = Field(default="", max_length=500)
+    reviewed_by: str = Field(default="", max_length=120)
+
+    @field_validator("data_source")
+    @classmethod
+    def clean_data_source(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Data source cannot be empty.")
+        return value
+
+    @field_validator("evidence_reference", "reviewed_by")
+    @classmethod
+    def clean_optional_text(cls, value: str) -> str:
+        return value.strip()
+
+
+@app.get("/factories/{factory_id}/review", tags=["Factory Data Review"])
+def read_factory_review(factory_id: int):
+    review = get_factory_review(factory_id, db_path=DB_PATH)
+    if review is None:
+        raise HTTPException(status_code=404, detail="Factory not found")
+    return review
+
+
+@app.put("/factories/{factory_id}/review", tags=["Factory Data Review"])
+def update_factory_review(factory_id: int, payload: FactoryReviewPayload):
+    try:
+        review = save_factory_review(
+            factory_id=factory_id,
+            data_source=payload.data_source,
+            verification_status=payload.verification_status,
+            evidence_reference=payload.evidence_reference,
+            reviewed_by=payload.reviewed_by,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if review is None:
+        raise HTTPException(status_code=404, detail="Factory not found")
+    return review
