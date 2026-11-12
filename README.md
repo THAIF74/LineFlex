@@ -71,7 +71,7 @@ Run:
 python -m pytest tests -v
 ```
 
-The current local test run passed all 13 tests, covering API operations, database CRUD, search and validation.
+The current local test run passed all 17 tests, covering API operations, database CRUD, search and validation.
 
 ## Planned modules
 
