@@ -36,12 +36,12 @@
 - [x] Add input validation and error handling
 - [x] Document local setup and API usage
 - [x] Pin direct dependencies
-- [x] Verify 13 automated tests pass
+- [x] Verify 17 automated tests pass
 - [ ] Review deprecation warning from test client
 - [ ] Capture genuine application screenshots
 - [ ] Expand edge-case testing
 
-**Current test result:** 13 passed, 0 failed, with one non-failing deprecation warning.
+**Current test result:** 17 passed, 0 failed, with one non-failing deprecation warning.
 
 ## Phase 5 — Deployment and evaluation
 - [ ] Review security and data-handling requirements
