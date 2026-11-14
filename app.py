@@ -9,9 +9,16 @@ from database import (
     initialize_db,
     update_factory,
 )
+from planning import (
+    add_production_requirement,
+    compare_requirement_to_factories,
+    get_production_requirements,
+    initialize_planning_tables,
+)
 
 st.set_page_config(page_title="LineFlex | Factory Registry", page_icon="🏭", layout="wide")
 initialize_db()
+initialize_planning_tables()
 
 
 def _parse_csv(value):
@@ -23,8 +30,8 @@ def _join_capabilities(factory, category):
 
 
 st.title("🏭 LineFlex")
-st.subheader("Factory Capability Registry")
-st.caption("Register and manage manufacturing capability information.")
+st.subheader("Factory Capability Registry & Production Readiness")
+st.caption("Record factory capabilities, define production requirements and compare recorded information.")
 
 factories = get_factories()
 all_processes = {
@@ -33,13 +40,14 @@ all_processes = {
     for process in factory.get("capabilities", {}).get("Process", [])
 }
 
-metric1, metric2, metric3 = st.columns(3)
+metric1, metric2, metric3, metric4 = st.columns(4)
 metric1.metric("Registered Factories", len(factories))
 metric2.metric("Factory Locations", len({(f["city"], f["state"]) for f in factories}))
 metric3.metric("Unique Processes", len(all_processes))
+metric4.metric("Production Requirements", len(get_production_requirements()))
 
-register_tab, directory_tab, manage_tab = st.tabs(
-    ["Register Factory", "Factory Directory", "Manage Factories"]
+register_tab, directory_tab, manage_tab, requirement_tab, matching_tab = st.tabs(
+    ["Register Factory", "Factory Directory", "Manage Factories", "Production Requirements", "Capability Matching"]
 )
 
 with register_tab:
@@ -161,18 +169,10 @@ with manage_tab:
                         "Capacity Unit", unit_options, index=unit_options.index(current_unit)
                     )
 
-                edit_machines = st.text_input(
-                    "Machines", value=_join_capabilities(selected, "Machine")
-                )
-                edit_processes = st.text_input(
-                    "Processes", value=_join_capabilities(selected, "Process")
-                )
-                edit_materials = st.text_input(
-                    "Supported Materials", value=_join_capabilities(selected, "Material")
-                )
-                edit_certifications = st.text_input(
-                    "Certifications", value=_join_capabilities(selected, "Certification")
-                )
+                edit_machines = st.text_input("Machines", value=_join_capabilities(selected, "Machine"))
+                edit_processes = st.text_input("Processes", value=_join_capabilities(selected, "Process"))
+                edit_materials = st.text_input("Supported Materials", value=_join_capabilities(selected, "Material"))
+                edit_certifications = st.text_input("Certifications", value=_join_capabilities(selected, "Certification"))
                 update_clicked = st.form_submit_button("Save Changes", type="primary")
 
             if update_clicked:
@@ -214,9 +214,104 @@ with manage_tab:
                 else:
                     st.error("Factory record was not found.")
 
+with requirement_tab:
+    st.header("Define a Production Requirement")
+    st.write("Describe what a part or production job requires. Use comma-separated capability labels.")
+    with st.form("production_requirement_form", clear_on_submit=True):
+        requirement_name = st.text_input("Requirement Name", placeholder="Aluminium Housing — CNC turning")
+        part_number = st.text_input("Part Number / Reference", placeholder="PART-001")
+        col1, col2 = st.columns(2)
+        with col1:
+            monthly_demand = st.number_input("Required Monthly Demand", min_value=0.0, value=1000.0, step=100.0)
+        with col2:
+            requirement_unit = st.selectbox("Demand Unit", ["Units", "Pieces", "Tons", "Components"], key="req_unit")
+        st.subheader("Required Capabilities")
+        required_machines = st.text_input("Required Machines", placeholder="CNC Lathe")
+        required_processes = st.text_input("Required Processes", placeholder="Turning")
+        required_materials = st.text_input("Required Materials", placeholder="Aluminium")
+        required_certifications = st.text_input("Required Certifications", placeholder="ISO 9001")
+        requirement_notes = st.text_area("Notes", placeholder="Optional part, tolerance or sourcing context")
+        requirement_submitted = st.form_submit_button("Save Production Requirement", type="primary")
+
+    if requirement_submitted:
+        try:
+            new_id = add_production_requirement(
+                requirement_name=requirement_name,
+                part_number=part_number,
+                monthly_demand=monthly_demand,
+                capacity_unit=requirement_unit,
+                notes=requirement_notes,
+                required_capabilities={
+                    "Machine": _parse_csv(required_machines),
+                    "Process": _parse_csv(required_processes),
+                    "Material": _parse_csv(required_materials),
+                    "Certification": _parse_csv(required_certifications),
+                },
+            )
+            st.success(f"Requirement saved. ID: {new_id}")
+            st.rerun()
+        except ValueError as error:
+            st.error(str(error))
+
+    saved_requirements = get_production_requirements()
+    st.subheader("Saved Requirements")
+    if saved_requirements:
+        st.dataframe(
+            pd.DataFrame([
+                {"ID": item["id"], "Requirement": item["requirement_name"],
+                 "Part Number": item["part_number"], "Monthly Demand": item["monthly_demand"],
+                 "Unit": item["capacity_unit"]}
+                for item in saved_requirements
+            ]), width="stretch", hide_index=True
+        )
+    else:
+        st.info("No production requirements have been saved yet.")
+
+with matching_tab:
+    st.header("Compare Requirements with Factory Capabilities")
+    saved_requirements = get_production_requirements()
+    if not saved_requirements:
+        st.info("Create a production requirement first.")
+    elif not factories:
+        st.info("Register at least one factory before running a comparison.")
+    else:
+        requirement_labels = {
+            f'{item["requirement_name"]} — {item["part_number"] or "No part number"} (ID {item["id"]})': item["id"]
+            for item in saved_requirements
+        }
+        chosen_label = st.selectbox("Choose a production requirement", list(requirement_labels.keys()))
+        chosen_id = requirement_labels[chosen_label]
+        comparison = compare_requirement_to_factories(chosen_id)
+        req = comparison["requirement"]
+        st.write(f'**Monthly demand:** {req["monthly_demand"]:,.2f} {req["capacity_unit"]}')
+        st.write("**Required capabilities:**")
+        for category, values in req["required_capabilities"].items():
+            if values:
+                st.write(f"- **{category}:** {', '.join(values)}")
+
+        summary_rows = [
+            {"Factory": result["factory_name"], "Location": f'{result["city"]}, {result["state"]}',
+             "Overall Result": result["overall_status"], "Stated Capacity": f'{result["stated_monthly_capacity"]:,.2f} {result["factory_capacity_unit"]}',
+             "Capacity Check": result["capacity_status"]}
+            for result in comparison["results"]
+        ]
+        st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
+
+        for result in comparison["results"]:
+            with st.expander(f'{result["factory_name"]} — {result["overall_status"]}'):
+                st.write(f'**Location:** {result["city"]}, {result["state"]}')
+                st.write(f'**Capacity check:** {result["capacity_status"]}')
+                for category, detail in result["capability_results"].items():
+                    if detail["status"] != "not_required":
+                        st.write(f'**{category}: {detail["status"]}**')
+                        st.write(f'  Required: {", ".join(detail["required"])}')
+                        st.write(f'  Matched: {", ".join(detail["matched"]) or "None"}')
+                        st.write(f'  Missing / not recorded: {", ".join(detail["missing"]) or "None"}')
+        st.warning(comparison["limitation"])
+
 st.divider()
 st.caption(
     "LineFlex is an early prototype. Capacity and capability details are user-entered "
-    "and are not independently verified. Similar equipment or stated capacity does not "
-    "prove technical compatibility or supplier approval."
+    "and are not independently verified. A potential match is only a preliminary screen, "
+    "not proof of actual availability, technical compatibility or supplier approval."
 )

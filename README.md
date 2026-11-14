@@ -1,21 +1,20 @@
-﻿# LineFlex
+# LineFlex
 
 ### Manufacturing Flexibility & Second-Source Readiness
 
 LineFlex is an early-stage project exploring how manufacturers can prepare for production changes and supplier disruption through structured capability information, scenario planning, and second-source qualification tracking.
 
-> **Current status:** Working local Factory Capability Registry with Streamlit, SQLite and a FastAPI backend.
+> **Current status:** Working local Factory Capability Registry with a FastAPI backend, factory data-review metadata, and an initial Production Requirements & Capability Matching workflow.
 
 ## What works today
 
-- Register factories and their locations.
-- Record stated monthly production capacity and units.
-- Record machines, processes, materials and certifications.
-- Search and view factory records.
-- Edit factory details and capability entries.
-- Delete factory records and their associated capabilities.
-- Access factory records through REST API endpoints.
-- Validate required fields and positive finite capacity values.
+- Register, search, view, edit, and delete factory records.
+- Record stated monthly capacity, machines, processes, supported materials, and certifications.
+- Track user-entered data source, review status, evidence reference, and reviewer label for a factory.
+- Create and search production requirements with a part number, monthly demand, and required capability labels.
+- Compare required machine, process, material, and certification labels against factory records.
+- See preliminary outcomes such as potential match, needs more data, capability gap, below stated capacity, and capacity-unit mismatch.
+- Use a Streamlit interface and FastAPI endpoints backed by SQLite.
 
 ## Technology
 
@@ -56,12 +55,37 @@ Open:
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | /health | Health check |
-| POST | /factories | Create factory |
-| GET | /factories | List and search factories |
-| GET | /factories/{factory_id} | Read factory |
-| PUT | /factories/{factory_id} | Update factory |
-| DELETE | /factories/{factory_id} | Delete factory |
+| GET | `/health` | Health check |
+| POST | `/factories` | Create factory |
+| GET | `/factories` | List and search factories |
+| GET | `/factories/{factory_id}` | Read factory |
+| PUT | `/factories/{factory_id}` | Update factory |
+| DELETE | `/factories/{factory_id}` | Delete factory |
+| GET | `/factories/{factory_id}/review` | Read source and review metadata |
+| PUT | `/factories/{factory_id}/review` | Save source, review status, evidence reference, and reviewer label |
+| POST | `/requirements` | Create production requirement |
+| GET | `/requirements` | List or search requirements |
+| GET | `/requirements/{requirement_id}` | Read one requirement |
+| DELETE | `/requirements/{requirement_id}` | Delete one requirement |
+| GET | `/requirements/{requirement_id}/matches` | Compare requirement with registered factories |
+
+## Production requirement and capability matching
+
+A requirement can record a name, part/reference number, monthly demand and unit, notes, and required machine, process, material, and certification labels. The first comparison uses exact, case-insensitive text matching against recorded factory capability labels.
+
+Possible outcomes:
+
+- `potential_match`: all entered labels are present and the factory's stated monthly capacity is at least the requested demand in the same unit.
+- `needs_more_data`: at least one required capability category has no factory values recorded.
+- `capability_gap`: one or more required labels are missing from categories that do have recorded values.
+- `below_stated_capacity`: the factory's stated monthly capacity is less than the requested demand.
+- `capacity_unit_mismatch`: factory capacity and requirement demand use different units.
+
+A comparison includes category-level matched, missing, and unrecorded details. It is a preliminary screening aid only. It does not calculate free capacity or prove technical equivalence, tolerance compatibility, quality, certification validity, delivery performance, or customer approval. A `potential_match` is not a supplier approval.
+
+## Factory data review metadata
+
+Factory review labels are user-entered: Unverified, Self-declared, Evidence attached, and Reviewed. Evidence references are text references only. The prototype does not upload, inspect, authenticate, or independently verify documents. A Reviewed label records a user's declaration, not LineFlex certification.
 
 ## Tests
 
@@ -71,35 +95,24 @@ Run:
 python -m pytest tests -v
 ```
 
-The current local test run passed all 17 tests, covering API operations, database CRUD, search and validation.
+The automated suite covers factory CRUD, data-review metadata, requirement storage and search, matching outcomes, missing data, capacity comparisons, input validation, and API behavior. Run it locally before treating a milestone as complete.
 
 ## Planned modules
 
-- Production Flexibility Planner
-- Second-Source Readiness
-- Qualification Workspace
-- Activation Workflow
+- Second-Source Readiness and qualification checklist
+- Qualification Workspace for evidence records and approval status
+- Activation Workflow for owners, tasks, and decisions
+- More complete production flexibility scenario planning
 
 ## Current limitations
 
 - Factory capacity and capabilities are user-entered and unverified.
-- No automatic engineering compatibility assessment is performed.
-- No supplier or certification claims are independently verified.
-- No authentication, roles or multi-user access.
-- No production deployment or customer approval workflow.
+- Capability matching uses exact labels; synonyms and engineering equivalence are not inferred.
+- Stated monthly capacity is not free or available capacity.
+- No automatic engineering, quality, certification, or supplier approval assessment is performed.
+- No authentication, roles, multi-user access, or production deployment.
 - Market demand and willingness to pay remain unvalidated.
 
-LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Real production transfers require appropriate technical checks and customer approvals.
+LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Any real production transfer requires appropriate engineering checks, supplier-quality review, contractual decisions, and customer approvals.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress.
-
-## Factory data review metadata
-
-The API also supports factory-level provenance and review labels:
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | /factories/{factory_id}/review | Read source and review metadata |
-| PUT | /factories/{factory_id}/review | Save source, status, evidence reference and reviewer label |
-
-Review statuses are user-entered labels: Unverified, Self-declared, Evidence attached, and Reviewed. An evidence reference is a text reference only; the prototype does not upload, inspect, authenticate or independently verify documents. A Reviewed label records a user's declaration, not LineFlex certification.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress and [docs/PRODUCTION_REQUIREMENTS.md](docs/PRODUCTION_REQUIREMENTS.md) for the first comparison workflow.

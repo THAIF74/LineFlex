@@ -2,56 +2,63 @@
 
 ## Phase 0 — Repository foundation
 - [x] Create public repository
-- [x] Add README, product brief, research plan and roadmap
+- [x] Add README, product brief, research plan, and roadmap
 
 ## Phase 1 — Research and scope
 - [ ] Verify competitor capabilities
 - [ ] Gather dated industry evidence
-- [ ] Select one initial manufacturing workflow
+- [ ] Select and validate one initial manufacturing workflow
 - [ ] Define sample data and user roles
 - [ ] Freeze MVP requirements
 
 ## Phase 2 — Factory Capability Registry
 - [x] Create SQLite factory and capability tables
-- [x] Register and retrieve factory records
-- [x] Record machines, processes, materials and certifications
-- [x] Search factories by name, city and state
-- [x] Edit factory details and capabilities
-- [x] Delete factories and associated capabilities
-- [x] Add validation for required fields and capacity
-- [x] Add factory-level data-source and review-status metadata API (user-entered labels, not independent verification)
-- [ ] Define requirement, candidate and qualification entities
+- [x] Register, retrieve, search, edit, and delete factory records
+- [x] Record machines, processes, materials, and certifications
+- [x] Add validation for required fields and stated capacity
+- [x] Add factory-level data-source and review-status metadata API
+- [ ] Add verified document upload and controlled evidence handling
 
-## Phase 3 — Core manufacturing workflow
-- [ ] Add requirement entry
-- [ ] Compare requirements with capability records
-- [ ] Show matched, mismatched and unknown fields
-- [ ] Add second-source qualification checklist
-- [ ] Add owners, dates and evidence references
+## Phase 3 — Production requirement and capability comparison
+- [x] Create production requirement records with part number, demand, unit, and notes
+- [x] Store required machine, process, material, and certification labels
+- [x] Compare requirements against registered factory capability labels
+- [x] Report matches, partial gaps, unrecorded categories, and capacity-unit/capacity shortfalls
+- [x] Expose requirement creation, listing, retrieval, deletion, and comparison API endpoints
+- [x] Add Streamlit requirement-entry and comparison screens
+- [ ] Add requirement editing and version history
+- [ ] Add candidate shortlist and human decision/approval capture
 
-## Phase 4 — Backend, quality and usability
-- [x] Build FastAPI backend
-- [x] Add factory CRUD API endpoints
-- [x] Add API and database tests
+**Current comparison rule:** Exact case-insensitive label matching, plus comparison of user-entered stated monthly capacity when units match. No fuzzy matching or engineering approval is inferred.
+
+## Phase 4 — Quality and usability
+- [x] Build FastAPI backend and factory CRUD endpoints
+- [x] Add factory provenance/review metadata endpoints
 - [x] Add input validation and error handling
+- [x] Add automated tests for factory CRUD, provenance, requirement storage, matching outcomes, and APIs
 - [x] Document local setup and API usage
-- [x] Pin direct dependencies
-- [x] Verify 17 automated tests pass
-- [ ] Review deprecation warning from test client
+- [ ] Review the existing test-client deprecation warning
 - [ ] Capture genuine application screenshots
-- [ ] Expand edge-case testing
+- [ ] Expand edge-case and usability testing
 
-**Current test result:** 17 passed, 0 failed, with one non-failing deprecation warning.
+**Exit condition:** Local demo can be reproduced using synthetic data, all tests pass, and the limitations of capability matching are clear.
 
-## Phase 5 — Deployment and evaluation
+## Phase 5 — Qualification and second-source workflow
+- [ ] Add second-source qualification checklist
+- [ ] Add owners, dates, tasks, and evidence references
+- [ ] Add human approval and decision history
+- [ ] Add requirement-to-candidate qualification workspace
+
+## Phase 6 — Security, deployment, and evaluation
 - [ ] Review security and data-handling requirements
+- [ ] Add authentication, roles, and access controls
 - [ ] Decide whether deployment is appropriate
 - [ ] Deploy only with non-sensitive demo data
 - [ ] Collect structured user feedback
 - [ ] Reassess product scope and commercial assumptions
 
-## Important limitation
+## Important limitations
 
-LineFlex currently stores user-entered manufacturing information. It does not verify actual capacity, technical compatibility, supplier suitability or customer approval.
+LineFlex stores user-entered manufacturing information. Capability matching is a preliminary screen based on exact text labels. It does not verify free capacity, technical compatibility, quality, certification validity, supplier suitability, or customer approval. A potential match is not an approval to transfer production.
 
-Update this roadmap only when a feature has been implemented and tested.
+Update this roadmap only when a capability has been implemented and tested.

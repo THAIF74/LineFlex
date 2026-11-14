@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
@@ -9,12 +11,20 @@ from database import (
     get_factory_by_id,
     update_factory,
 )
+from planning import (
+    add_production_requirement,
+    compare_requirement_to_factories,
+    delete_production_requirement,
+    get_production_requirement,
+    get_production_requirements,
+)
+from provenance import get_factory_review, save_factory_review
 
 DB_PATH = DEFAULT_DB
 app = FastAPI(
     title="LineFlex API",
     description="API for the LineFlex Factory Capability Registry prototype.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -34,7 +44,7 @@ class FactoryPayload(BaseModel):
     def strip_required_text(cls, value: str) -> str:
         value = value.strip()
         if not value:
-            raise ValueError("This field cannot be empty or whitespace.")
+            raise ValueError("This field cannot be empty.")
         return value
 
     @field_validator("machines", "processes", "materials", "certifications")
@@ -89,10 +99,6 @@ def remove_factory(factory_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Factory not found")
     return {"message": "Factory deleted", "factory_id": factory_id}
-# Factory-level data provenance and review metadata.
-from typing import Literal
-
-from provenance import get_factory_review, save_factory_review
 
 
 class FactoryReviewPayload(BaseModel):
@@ -141,3 +147,89 @@ def update_factory_review(factory_id: int, payload: FactoryReviewPayload):
     if review is None:
         raise HTTPException(status_code=404, detail="Factory not found")
     return review
+
+
+class ProductionRequirementPayload(BaseModel):
+    requirement_name: str = Field(min_length=1, max_length=150)
+    part_number: str = Field(default="", max_length=100)
+    monthly_demand: float = Field(gt=0, allow_inf_nan=False)
+    capacity_unit: str = Field(min_length=1, max_length=40)
+    notes: str = Field(default="", max_length=1000)
+    required_capabilities: dict[str, list[str]] = Field(default_factory=dict)
+
+    @field_validator("requirement_name", "capacity_unit")
+    @classmethod
+    def clean_required_requirement_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("This field cannot be empty.")
+        return value
+
+    @field_validator("part_number", "notes")
+    @classmethod
+    def clean_optional_requirement_text(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("required_capabilities")
+    @classmethod
+    def validate_required_capability_categories(cls, values: dict[str, list[str]]):
+        allowed = {"Machine", "Process", "Material", "Certification"}
+        unknown = set(values) - allowed
+        if unknown:
+            raise ValueError("Unknown capability categories: " + ", ".join(sorted(unknown)))
+        cleaned = {}
+        for category, entries in values.items():
+            seen = set()
+            cleaned[category] = []
+            for entry in entries:
+                label = entry.strip()
+                if label and label.casefold() not in seen:
+                    cleaned[category].append(label)
+                    seen.add(label.casefold())
+        return cleaned
+
+
+@app.post("/requirements", status_code=status.HTTP_201_CREATED, tags=["Production Requirements"])
+def create_requirement(payload: ProductionRequirementPayload):
+    try:
+        requirement_id = add_production_requirement(
+            requirement_name=payload.requirement_name,
+            part_number=payload.part_number,
+            monthly_demand=payload.monthly_demand,
+            capacity_unit=payload.capacity_unit,
+            notes=payload.notes,
+            required_capabilities=payload.required_capabilities,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return get_production_requirement(requirement_id, db_path=DB_PATH)
+
+
+@app.get("/requirements", tags=["Production Requirements"])
+def list_requirements(search: str = ""):
+    return get_production_requirements(search=search, db_path=DB_PATH)
+
+
+@app.get("/requirements/{requirement_id}", tags=["Production Requirements"])
+def read_requirement(requirement_id: int):
+    requirement = get_production_requirement(requirement_id, db_path=DB_PATH)
+    if requirement is None:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    return requirement
+
+
+@app.delete("/requirements/{requirement_id}", tags=["Production Requirements"])
+def remove_requirement(requirement_id: int):
+    deleted = delete_production_requirement(requirement_id, db_path=DB_PATH)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    return {"message": "Production requirement deleted", "requirement_id": requirement_id}
+
+
+@app.get("/requirements/{requirement_id}/matches", tags=["Capability Matching"])
+def match_requirement(requirement_id: int):
+    comparison = compare_requirement_to_factories(requirement_id, db_path=DB_PATH)
+    if comparison is None:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    return comparison
