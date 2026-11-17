@@ -15,10 +15,13 @@ from planning import (
     get_production_requirements,
     initialize_planning_tables,
 )
+from qualification import initialize_qualification_tables
+from qualification_ui import render_qualification_workspace
 
 st.set_page_config(page_title="LineFlex | Factory Registry", page_icon="🏭", layout="wide")
 initialize_db()
 initialize_planning_tables()
+initialize_qualification_tables()
 
 
 def _parse_csv(value):
@@ -46,8 +49,8 @@ metric2.metric("Factory Locations", len({(f["city"], f["state"]) for f in factor
 metric3.metric("Unique Processes", len(all_processes))
 metric4.metric("Production Requirements", len(get_production_requirements()))
 
-register_tab, directory_tab, manage_tab, requirement_tab, matching_tab = st.tabs(
-    ["Register Factory", "Factory Directory", "Manage Factories", "Production Requirements", "Capability Matching"]
+register_tab, directory_tab, manage_tab, requirement_tab, matching_tab, qualification_tab = st.tabs(
+    ["Register Factory", "Factory Directory", "Manage Factories", "Production Requirements", "Capability Matching", "Second-Source Qualification"]
 )
 
 with register_tab:
@@ -308,6 +311,9 @@ with matching_tab:
                         st.write(f'  Matched: {", ".join(detail["matched"]) or "None"}')
                         st.write(f'  Missing / not recorded: {", ".join(detail["missing"]) or "None"}')
         st.warning(comparison["limitation"])
+
+with qualification_tab:
+    render_qualification_workspace()
 
 st.divider()
 st.caption(

@@ -99,8 +99,8 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 
 ## Planned modules
 
-- Second-Source Readiness and qualification checklist
-- Qualification Workspace for evidence records and approval status
+- Activation Workflow for linked tasks, owners, and decisions
+- Requirement editing and version history
 - Activation Workflow for owners, tasks, and decisions
 - More complete production flexibility scenario planning
 
@@ -116,3 +116,13 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Any real production transfer requires appropriate engineering checks, supplier-quality review, contractual decisions, and customer approvals.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress and [docs/PRODUCTION_REQUIREMENTS.md](docs/PRODUCTION_REQUIREMENTS.md) for the first comparison workflow.
+
+## Second-source qualification workflow
+
+- Start a qualification by linking one production requirement to one alternative factory.
+- Track seven review checks for engineering specifications, process capability, materials, quality/certifications, capacity/lead time, sample inspection, and customer approval.
+- Record check status, owner, due date, evidence reference, and review notes.
+- Move a fully completed checklist to `Ready for review`; this is not automatic approval.
+- Record a named human decision (`Approved`, `Rejected`, or `On hold`) with its rationale and retain decision history. Approval is blocked until every check is `Passed` or `Not applicable`.
+
+The checklist and decisions are user-entered workflow records. Evidence references are not inspected or authenticated, and a recorded approval is not LineFlex certification or proof of technical suitability. See [docs/SECOND_SOURCE_QUALIFICATION.md](docs/SECOND_SOURCE_QUALIFICATION.md).

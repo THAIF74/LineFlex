@@ -44,10 +44,16 @@
 **Exit condition:** Local demo can be reproduced using synthetic data, all tests pass, and the limitations of capability matching are clear.
 
 ## Phase 5 — Qualification and second-source workflow
-- [ ] Add second-source qualification checklist
-- [ ] Add owners, dates, tasks, and evidence references
-- [ ] Add human approval and decision history
-- [ ] Add requirement-to-candidate qualification workspace
+- [x] Start a qualification by linking a production requirement to an alternative factory
+- [x] Create a standard second-source review checklist
+- [x] Track check status, owner, due date, evidence reference, and notes
+- [x] Move completed checklists to Ready for review
+- [x] Record human decisions with rationale and decision history
+- [x] Expose qualification, checklist, decision, and history API endpoints
+- [x] Add Streamlit qualification workspace
+- [ ] Add notifications and reminders
+- [ ] Add role-based approval permissions and authenticated reviewer identity
+- [ ] Add reusable checklist templates by industry or part type
 
 ## Phase 6 — Security, deployment, and evaluation
 - [ ] Review security and data-handling requirements

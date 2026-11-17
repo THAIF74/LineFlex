@@ -24,7 +24,7 @@ DB_PATH = DEFAULT_DB
 app = FastAPI(
     title="LineFlex API",
     description="API for the LineFlex Factory Capability Registry prototype.",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 
@@ -233,3 +233,130 @@ def match_requirement(requirement_id: int):
     if comparison is None:
         raise HTTPException(status_code=404, detail="Production requirement not found")
     return comparison
+
+# Second-source qualification workflow.
+from qualification import (
+    CHECK_STATUSES,
+    DECISION_STATUSES,
+    create_qualification,
+    delete_qualification,
+    get_qualification,
+    get_qualifications,
+    record_qualification_decision,
+    update_qualification_check,
+)
+
+
+class CreateQualificationPayload(BaseModel):
+    requirement_id: int = Field(gt=0)
+    factory_id: int = Field(gt=0)
+
+
+class QualificationCheckPayload(BaseModel):
+    status: Literal["Not started", "In progress", "Passed", "Gap", "Not applicable"]
+    owner: str = Field(default="", max_length=120)
+    due_date: str = Field(default="", max_length=10)
+    evidence_reference: str = Field(default="", max_length=500)
+    notes: str = Field(default="", max_length=1000)
+
+    @field_validator("owner", "due_date", "evidence_reference", "notes")
+    @classmethod
+    def clean_qualification_check_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class QualificationDecisionPayload(BaseModel):
+    decision: Literal["Approved", "Rejected", "On hold"]
+    decision_by: str = Field(min_length=1, max_length=120)
+    decision_notes: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("decision_by", "decision_notes")
+    @classmethod
+    def clean_decision_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Decision maker and rationale cannot be empty.")
+        return value
+
+
+@app.post("/qualifications", status_code=status.HTTP_201_CREATED, tags=["Second-Source Qualification"])
+def start_qualification(payload: CreateQualificationPayload):
+    try:
+        qualification_id = create_qualification(
+            requirement_id=payload.requirement_id,
+            factory_id=payload.factory_id,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        message = str(error)
+        code = 409 if "already exists" in message else 404
+        raise HTTPException(status_code=code, detail=message) from error
+    return get_qualification(qualification_id, db_path=DB_PATH)
+
+
+@app.get("/qualifications", tags=["Second-Source Qualification"])
+def list_qualifications(requirement_id: int | None = None):
+    return get_qualifications(requirement_id=requirement_id, db_path=DB_PATH)
+
+
+@app.get("/qualifications/{qualification_id}", tags=["Second-Source Qualification"])
+def read_qualification(qualification_id: int):
+    item = get_qualification(qualification_id, db_path=DB_PATH)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Qualification not found")
+    return item
+
+
+@app.patch("/qualifications/{qualification_id}/checks/{check_id}", tags=["Second-Source Qualification"])
+def edit_qualification_check(
+    qualification_id: int, check_id: int, payload: QualificationCheckPayload
+):
+    try:
+        item = update_qualification_check(
+            qualification_id=qualification_id,
+            check_id=check_id,
+            status=payload.status,
+            owner=payload.owner,
+            due_date=payload.due_date,
+            evidence_reference=payload.evidence_reference,
+            notes=payload.notes,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if item is None:
+        raise HTTPException(status_code=404, detail="Qualification or checklist item not found")
+    return item
+
+
+@app.post("/qualifications/{qualification_id}/decision", tags=["Second-Source Qualification"])
+def decide_qualification(qualification_id: int, payload: QualificationDecisionPayload):
+    try:
+        item = record_qualification_decision(
+            qualification_id=qualification_id,
+            decision=payload.decision,
+            decision_by=payload.decision_by,
+            decision_notes=payload.decision_notes,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if item is None:
+        raise HTTPException(status_code=404, detail="Qualification not found")
+    return item
+
+
+@app.get("/qualifications/{qualification_id}/decisions", tags=["Second-Source Qualification"])
+def qualification_decision_history(qualification_id: int):
+    item = get_qualification(qualification_id, db_path=DB_PATH)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Qualification not found")
+    return item["decisions"]
+
+
+@app.delete("/qualifications/{qualification_id}", tags=["Second-Source Qualification"])
+def remove_qualification(qualification_id: int):
+    deleted = delete_qualification(qualification_id, db_path=DB_PATH)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Qualification not found")
+    return {"message": "Qualification deleted", "qualification_id": qualification_id}
