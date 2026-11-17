@@ -19,6 +19,7 @@ from planning import (
     get_production_requirements,
 )
 from provenance import get_factory_review, save_factory_review
+from requirement_versions import get_requirement_version_history, update_production_requirement
 
 DB_PATH = DEFAULT_DB
 app = FastAPI(
@@ -189,6 +190,17 @@ class ProductionRequirementPayload(BaseModel):
         return cleaned
 
 
+class ProductionRequirementUpdatePayload(ProductionRequirementPayload):
+    change_note: str = Field(min_length=1, max_length=300)
+
+    @field_validator("change_note")
+    @classmethod
+    def clean_change_note(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A change note is required.")
+        return value
+
 @app.post("/requirements", status_code=status.HTTP_201_CREATED, tags=["Production Requirements"])
 def create_requirement(payload: ProductionRequirementPayload):
     try:
@@ -218,6 +230,34 @@ def read_requirement(requirement_id: int):
         raise HTTPException(status_code=404, detail="Production requirement not found")
     return requirement
 
+
+@app.put("/requirements/{requirement_id}", tags=["Production Requirements"])
+def edit_requirement(requirement_id: int, payload: ProductionRequirementUpdatePayload):
+    try:
+        updated = update_production_requirement(
+            requirement_id=requirement_id,
+            requirement_name=payload.requirement_name,
+            part_number=payload.part_number,
+            monthly_demand=payload.monthly_demand,
+            capacity_unit=payload.capacity_unit,
+            notes=payload.notes,
+            required_capabilities=payload.required_capabilities,
+            change_note=payload.change_note,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    return updated
+
+
+@app.get("/requirements/{requirement_id}/versions", tags=["Production Requirements"])
+def requirement_version_history(requirement_id: int):
+    requirement = get_production_requirement(requirement_id, db_path=DB_PATH)
+    if requirement is None:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    return get_requirement_version_history(requirement_id, db_path=DB_PATH)
 
 @app.delete("/requirements/{requirement_id}", tags=["Production Requirements"])
 def remove_requirement(requirement_id: int):

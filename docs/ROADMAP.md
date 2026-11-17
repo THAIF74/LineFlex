@@ -26,7 +26,7 @@
 - [x] Report matches, partial gaps, unrecorded categories, and capacity-unit/capacity shortfalls
 - [x] Expose requirement creation, listing, retrieval, deletion, and comparison API endpoints
 - [x] Add Streamlit requirement-entry and comparison screens
-- [ ] Add requirement editing and version history
+- [x] Add requirement editing and version history
 - [ ] Add candidate shortlist and human decision/approval capture
 
 **Current comparison rule:** Exact case-insensitive label matching, plus comparison of user-entered stated monthly capacity when units match. No fuzzy matching or engineering approval is inferred.

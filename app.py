@@ -17,6 +17,7 @@ from planning import (
 )
 from qualification import initialize_qualification_tables
 from qualification_ui import render_qualification_workspace
+from requirement_edit_ui import render_requirement_edit_workspace
 
 st.set_page_config(page_title="LineFlex | Factory Registry", page_icon="🏭", layout="wide")
 initialize_db()
@@ -269,6 +270,8 @@ with requirement_tab:
         )
     else:
         st.info("No production requirements have been saved yet.")
+
+    render_requirement_edit_workspace()
 
 with matching_tab:
     st.header("Compare Requirements with Factory Capabilities")

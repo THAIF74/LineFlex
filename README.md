@@ -11,7 +11,8 @@ LineFlex is an early-stage project exploring how manufacturers can prepare for p
 - Register, search, view, edit, and delete factory records.
 - Record stated monthly capacity, machines, processes, supported materials, and certifications.
 - Track user-entered data source, review status, evidence reference, and reviewer label for a factory.
-- Create and search production requirements with a part number, monthly demand, and required capability labels.
+- Create, search, and edit production requirements with a part number, monthly demand, and required capability labels.
+- Keep a version history of requirement edits, including full snapshots and change notes.
 - Compare required machine, process, material, and certification labels against factory records.
 - See preliminary outcomes such as potential match, needs more data, capability gap, below stated capacity, and capacity-unit mismatch.
 - Use a Streamlit interface and FastAPI endpoints backed by SQLite.
@@ -65,8 +66,10 @@ Open:
 | PUT | `/factories/{factory_id}/review` | Save source, review status, evidence reference, and reviewer label |
 | POST | `/requirements` | Create production requirement |
 | GET | `/requirements` | List or search requirements |
-| GET | `/requirements/{requirement_id}` | Read one requirement |
-| DELETE | `/requirements/{requirement_id}` | Delete one requirement |
+| GET | `/requirements/{requirement_id}` | Read one production requirement |
+| PUT | `/requirements/{requirement_id}` | Edit a requirement and create a version |
+| GET | `/requirements/{requirement_id}/versions` | Read requirement version history |
+| DELETE | `/requirements/{requirement_id}` | Delete one production requirement |
 | GET | `/requirements/{requirement_id}/matches` | Compare requirement with registered factories |
 
 ## Production requirement and capability matching
@@ -99,9 +102,10 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 
 ## Planned modules
 
-- Activation Workflow for linked tasks, owners, and decisions
-- Requirement editing and version history
-- Activation Workflow for owners, tasks, and decisions
+- Candidate shortlist and human decision/approval capture
+- Notifications and reminders for qualification reviews
+- Role-based approval permissions and authenticated reviewer identity
+- Reusable qualification checklist templates
 - More complete production flexibility scenario planning
 
 ## Current limitations
@@ -111,11 +115,12 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 - Stated monthly capacity is not free or available capacity.
 - No automatic engineering, quality, certification, or supplier approval assessment is performed.
 - No authentication, roles, multi-user access, or production deployment.
+- Editing a requirement does not automatically reopen a linked second-source qualification; review prior decisions before relying on them.
 - Market demand and willingness to pay remain unvalidated.
 
 LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Any real production transfer requires appropriate engineering checks, supplier-quality review, contractual decisions, and customer approvals.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress and [docs/PRODUCTION_REQUIREMENTS.md](docs/PRODUCTION_REQUIREMENTS.md) for the first comparison workflow.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress, [docs/PRODUCTION_REQUIREMENTS.md](docs/PRODUCTION_REQUIREMENTS.md) for the comparison workflow, and [docs/REQUIREMENT_VERSION_HISTORY.md](docs/REQUIREMENT_VERSION_HISTORY.md) for requirement editing and snapshots.
 
 ## Second-source qualification workflow
 
