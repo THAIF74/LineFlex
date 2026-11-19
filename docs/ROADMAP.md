@@ -27,7 +27,7 @@
 - [x] Expose requirement creation, listing, retrieval, deletion, and comparison API endpoints
 - [x] Add Streamlit requirement-entry and comparison screens
 - [x] Add requirement editing and version history
-- [ ] Add candidate shortlist and human decision/approval capture
+- [x] Add candidate shortlist and human decision/approval capture
 
 **Current comparison rule:** Exact case-insensitive label matching, plus comparison of user-entered stated monthly capacity when units match. No fuzzy matching or engineering approval is inferred.
 

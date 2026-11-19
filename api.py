@@ -20,6 +20,14 @@ from planning import (
 )
 from provenance import get_factory_review, save_factory_review
 from requirement_versions import get_requirement_version_history, update_production_requirement
+from candidate_shortlists import (
+    CANDIDATE_DECISIONS,
+    create_requirement_candidate,
+    delete_candidate,
+    get_candidate,
+    get_requirement_candidates,
+    record_candidate_decision,
+)
 
 DB_PATH = DEFAULT_DB
 app = FastAPI(
@@ -400,3 +408,96 @@ def remove_qualification(qualification_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Qualification not found")
     return {"message": "Qualification deleted", "qualification_id": qualification_id}
+
+
+# Requirement candidate shortlist and human decision capture.
+class CreateCandidatePayload(BaseModel):
+    factory_id: int = Field(gt=0)
+    added_by: str = Field(default="", max_length=120)
+    notes: str = Field(default="", max_length=1000)
+
+    @field_validator("added_by", "notes")
+    @classmethod
+    def clean_candidate_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class CandidateDecisionPayload(BaseModel):
+    decision: Literal["Under review", "On hold", "Selected", "Rejected"]
+    decision_by: str = Field(min_length=1, max_length=120)
+    rationale: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("decision_by", "rationale")
+    @classmethod
+    def clean_candidate_decision_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Decision maker and rationale cannot be empty.")
+        return value
+
+
+@app.post("/requirements/{requirement_id}/candidates", status_code=status.HTTP_201_CREATED, tags=["Candidate Shortlist"])
+def add_requirement_candidate(requirement_id: int, payload: CreateCandidatePayload):
+    if get_production_requirement(requirement_id, db_path=DB_PATH) is None:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    try:
+        candidate_id = create_requirement_candidate(
+            requirement_id=requirement_id,
+            factory_id=payload.factory_id,
+            added_by=payload.added_by,
+            notes=payload.notes,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        message = str(error)
+        code = 404 if "Factory was not found" in message else 422
+        raise HTTPException(status_code=code, detail=message) from error
+    return get_candidate(candidate_id, db_path=DB_PATH)
+
+
+@app.get("/requirements/{requirement_id}/candidates", tags=["Candidate Shortlist"])
+def list_requirement_candidates(requirement_id: int):
+    if get_production_requirement(requirement_id, db_path=DB_PATH) is None:
+        raise HTTPException(status_code=404, detail="Production requirement not found")
+    return get_requirement_candidates(requirement_id, db_path=DB_PATH)
+
+
+@app.get("/candidates/{candidate_id}", tags=["Candidate Shortlist"])
+def read_candidate(candidate_id: int):
+    candidate = get_candidate(candidate_id, db_path=DB_PATH)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return candidate
+
+
+@app.patch("/candidates/{candidate_id}/decision", tags=["Candidate Shortlist"])
+def decide_candidate(candidate_id: int, payload: CandidateDecisionPayload):
+    try:
+        candidate = record_candidate_decision(
+            candidate_id=candidate_id,
+            decision=payload.decision,
+            decision_by=payload.decision_by,
+            rationale=payload.rationale,
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return candidate
+
+
+@app.get("/candidates/{candidate_id}/decisions", tags=["Candidate Shortlist"])
+def candidate_decision_history(candidate_id: int):
+    candidate = get_candidate(candidate_id, db_path=DB_PATH)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return candidate["decisions"]
+
+
+@app.delete("/candidates/{candidate_id}", tags=["Candidate Shortlist"])
+def remove_candidate(candidate_id: int):
+    deleted = delete_candidate(candidate_id, db_path=DB_PATH)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return {"message": "Candidate removed from shortlist", "candidate_id": candidate_id}

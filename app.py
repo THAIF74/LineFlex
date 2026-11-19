@@ -18,6 +18,7 @@ from planning import (
 from qualification import initialize_qualification_tables
 from qualification_ui import render_qualification_workspace
 from requirement_edit_ui import render_requirement_edit_workspace
+from candidate_ui import render_candidate_shortlist_workspace
 
 st.set_page_config(page_title="LineFlex | Factory Registry", page_icon="🏭", layout="wide")
 initialize_db()
@@ -50,8 +51,8 @@ metric2.metric("Factory Locations", len({(f["city"], f["state"]) for f in factor
 metric3.metric("Unique Processes", len(all_processes))
 metric4.metric("Production Requirements", len(get_production_requirements()))
 
-register_tab, directory_tab, manage_tab, requirement_tab, matching_tab, qualification_tab = st.tabs(
-    ["Register Factory", "Factory Directory", "Manage Factories", "Production Requirements", "Capability Matching", "Second-Source Qualification"]
+register_tab, directory_tab, manage_tab, requirement_tab, matching_tab, candidate_tab, qualification_tab = st.tabs(
+    ["Register Factory", "Factory Directory", "Manage Factories", "Production Requirements", "Capability Matching", "Candidate Shortlist", "Second-Source Qualification"]
 )
 
 with register_tab:
@@ -314,6 +315,9 @@ with matching_tab:
                         st.write(f'  Matched: {", ".join(detail["matched"]) or "None"}')
                         st.write(f'  Missing / not recorded: {", ".join(detail["missing"]) or "None"}')
         st.warning(comparison["limitation"])
+
+with candidate_tab:
+    render_candidate_shortlist_workspace()
 
 with qualification_tab:
     render_qualification_workspace()

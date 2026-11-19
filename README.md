@@ -13,6 +13,7 @@ LineFlex is an early-stage project exploring how manufacturers can prepare for p
 - Track user-entered data source, review status, evidence reference, and reviewer label for a factory.
 - Create, search, and edit production requirements with a part number, monthly demand, and required capability labels.
 - Keep a version history of requirement edits, including full snapshots and change notes.
+- Shortlist alternative factories for each requirement and record human decisions with rationale and history.
 - Compare required machine, process, material, and certification labels against factory records.
 - See preliminary outcomes such as potential match, needs more data, capability gap, below stated capacity, and capacity-unit mismatch.
 - Use a Streamlit interface and FastAPI endpoints backed by SQLite.
@@ -71,6 +72,12 @@ Open:
 | GET | `/requirements/{requirement_id}/versions` | Read requirement version history |
 | DELETE | `/requirements/{requirement_id}` | Delete one production requirement |
 | GET | `/requirements/{requirement_id}/matches` | Compare requirement with registered factories |
+| POST | `/requirements/{requirement_id}/candidates` | Add a factory to a requirement shortlist |
+| GET | `/requirements/{requirement_id}/candidates` | List shortlisted factories for a requirement |
+| GET | `/candidates/{candidate_id}` | Read a candidate and its decision history |
+| PATCH | `/candidates/{candidate_id}/decision` | Record a human shortlist decision |
+| GET | `/candidates/{candidate_id}/decisions` | Read candidate decision history |
+| DELETE | `/candidates/{candidate_id}` | Remove a candidate from a shortlist |
 
 ## Production requirement and capability matching
 
@@ -102,7 +109,6 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 
 ## Planned modules
 
-- Candidate shortlist and human decision/approval capture
 - Notifications and reminders for qualification reviews
 - Role-based approval permissions and authenticated reviewer identity
 - Reusable qualification checklist templates
@@ -120,7 +126,7 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 
 LineFlex is a planning and record-keeping prototype, not a certification or engineering approval system. Any real production transfer requires appropriate engineering checks, supplier-quality review, contractual decisions, and customer approvals.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress, [docs/PRODUCTION_REQUIREMENTS.md](docs/PRODUCTION_REQUIREMENTS.md) for the comparison workflow, and [docs/REQUIREMENT_VERSION_HISTORY.md](docs/REQUIREMENT_VERSION_HISTORY.md) for requirement editing and snapshots.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress, [docs/PRODUCTION_REQUIREMENTS.md](docs/PRODUCTION_REQUIREMENTS.md) for the comparison workflow, [docs/REQUIREMENT_VERSION_HISTORY.md](docs/REQUIREMENT_VERSION_HISTORY.md) for requirement editing and snapshots, and [docs/CANDIDATE_SHORTLIST.md](docs/CANDIDATE_SHORTLIST.md) for shortlist decisions.
 
 ## Second-source qualification workflow
 
