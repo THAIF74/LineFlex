@@ -2,11 +2,17 @@
 
 ## Purpose
 
-This workflow tracks the human review needed when a factory is being considered as an alternative source for a production requirement. It links one existing production requirement to one registered factory and creates a standard checklist.
+This workflow tracks the human review needed when a factory is being considered as an alternative source for a production requirement. It links one existing production requirement to one registered factory and creates a checklist from a saved template. A standard seven-check template is supplied by default; custom templates can be created for different part types or review workflows.
 
-## Qualification checklist
+## Reusable checklist templates
 
-Each qualification starts with these seven checks:
+Templates have a name, description, and an ordered list of checklist items. Each item has a unique key and a title. Create custom templates for different part types or review workflows, then select one when starting a qualification. The standard template is protected from editing and deletion.
+
+A qualification copies its selected template into its own checklist records when it starts. Later edits or deletion of a custom template do not change existing qualifications or their decision history.
+
+## Standard qualification checklist
+
+The default template starts with these seven checks:
 
 1. Engineering drawing and specification review
 2. Process capability review
@@ -26,7 +32,12 @@ A named decision maker records a decision of `Approved`, `Rejected`, or `On hold
 
 ## API
 
-- `POST /qualifications` — start a qualification using `requirement_id` and `factory_id`.
+- `GET /qualification-templates` — list saved checklist templates.
+- `POST /qualification-templates` — create a template with `name`, optional `description`, and `items` (`check_key`, `title`).
+- `GET /qualification-templates/{template_id}` — read a template.
+- `PUT /qualification-templates/{template_id}` — update a custom template; the standard template is protected.
+- `DELETE /qualification-templates/{template_id}` — delete a custom template; existing qualifications retain their copied checklist items.
+- `POST /qualifications` — start a qualification using `requirement_id`, `factory_id`, and an optional `template_id`. Omitting `template_id` selects the standard template.
 - `GET /qualifications` — list qualifications; optionally filter by `requirement_id`.
 - `GET /qualifications/{qualification_id}` — read a qualification and its checklist/history.
 - `PATCH /qualifications/{qualification_id}/checks/{check_id}` — update one checklist item.

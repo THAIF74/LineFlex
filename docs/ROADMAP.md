@@ -31,6 +31,8 @@
 
 **Current comparison rule:** Exact case-insensitive label matching, plus comparison of user-entered stated monthly capacity when units match. No fuzzy matching or engineering approval is inferred.
 
+**Qualification template rule:** Each new qualification copies the selected template's items into its own checklist records. Editing or deleting a custom template does not rewrite existing qualifications. The standard template is protected from editing and deletion.
+
 ## Phase 4 — Quality and usability
 - [x] Build FastAPI backend and factory CRUD endpoints
 - [x] Add factory provenance/review metadata endpoints
@@ -53,7 +55,7 @@
 - [x] Add Streamlit qualification workspace
 - [ ] Add notifications and reminders
 - [ ] Add role-based approval permissions and authenticated reviewer identity
-- [ ] Add reusable checklist templates by industry or part type
+- [x] Add reusable checklist templates by industry or part type
 
 ## Phase 6 — Security, deployment, and evaluation
 - [ ] Review security and data-handling requirements
