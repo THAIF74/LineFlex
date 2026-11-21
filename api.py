@@ -384,7 +384,9 @@ def create_qualification_template(payload: QualificationTemplatePayload):
             db_path=DB_PATH,
         )
     except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+        message = str(error)
+        code = 409 if "already exists" in message else 422
+        raise HTTPException(status_code=code, detail=message) from error
     return get_checklist_template(template_id, db_path=DB_PATH)
 
 
@@ -407,7 +409,9 @@ def edit_qualification_template(template_id: int, payload: QualificationTemplate
             db_path=DB_PATH,
         )
     except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+        message = str(error)
+        code = 409 if "already exists" in message or "cannot be edited" in message else 422
+        raise HTTPException(status_code=code, detail=message) from error
     if template is None:
         raise HTTPException(status_code=404, detail="Checklist template not found")
     return template
