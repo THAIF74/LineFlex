@@ -8,12 +8,30 @@ from planning import get_production_requirements
 from qualification import (
     CHECK_STATUSES,
     DECISION_STATUSES,
+    create_checklist_template,
     create_qualification,
+    get_checklist_templates,
     get_qualification,
     get_qualifications,
     record_qualification_decision,
     update_qualification_check,
 )
+
+
+def _parse_template_items(raw_text):
+    items = []
+    for line_number, line in enumerate(str(raw_text or "").splitlines(), start=1):
+        if not line.strip():
+            continue
+        if "|" not in line:
+            raise ValueError(
+                f"Line {line_number} must use the format: key | checklist title."
+            )
+        key, title = line.split("|", 1)
+        items.append((key.strip(), title.strip()))
+    if not items:
+        raise ValueError("Enter at least one checklist item.")
+    return items
 
 
 def render_qualification_workspace():
@@ -25,6 +43,62 @@ def render_qualification_workspace():
 
     requirements = get_production_requirements()
     factories = get_factories()
+    templates = get_checklist_templates()
+
+    with st.expander("Create a reusable checklist template"):
+        st.caption(
+            "Create a checklist for a part type or review workflow. "
+            "Each non-empty line must use: key | checklist title."
+        )
+        with st.form("create_qualification_template", clear_on_submit=True):
+            template_name = st.text_input(
+                "Template name", placeholder="Aluminium housing review"
+            )
+            template_description = st.text_input(
+                "Description", placeholder="Checks for machined aluminium housings"
+            )
+            template_items_text = st.text_area(
+                "Checklist items",
+                placeholder=(
+                    "drawing_review | Review the latest engineering drawing\n"
+                    "material_traceability | Confirm material grade and traceability\n"
+                    "sample_inspection | Review sample inspection results"
+                ),
+                height=120,
+            )
+            save_template_clicked = st.form_submit_button(
+                "Save Checklist Template", type="primary"
+            )
+        if save_template_clicked:
+            try:
+                template_id = create_checklist_template(
+                    name=template_name,
+                    description=template_description,
+                    items=_parse_template_items(template_items_text),
+                )
+                st.success(f"Checklist template saved. ID: {template_id}")
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
+
+    with st.expander("Saved checklist templates"):
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "Template": item["name"],
+                    "Type": "Standard" if item["is_default"] else "Custom",
+                    "Checklist Items": len(item["items"]),
+                    "Description": item["description"],
+                }
+                for item in templates
+            ]),
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption(
+            "A qualification copies its selected template when it starts. "
+            "Later template changes do not change existing qualification checklists."
+        )
 
     if requirements and factories:
         requirement_labels = {
@@ -48,11 +122,25 @@ def render_qualification_workspace():
                     options=list(factory_labels),
                     format_func=lambda value: factory_labels[value],
                 )
+                template_labels = {
+                    item["id"]: (
+                        f'{item["name"]} — {len(item["items"])} checks'
+                        + (" (Standard)" if item["is_default"] else "")
+                    )
+                    for item in templates
+                }
+                template_id = st.selectbox(
+                    "Checklist template",
+                    options=list(template_labels),
+                    format_func=lambda value: template_labels[value],
+                )
                 create_clicked = st.form_submit_button("Start Qualification", type="primary")
 
             if create_clicked:
                 try:
-                    qualification_id = create_qualification(requirement_id, factory_id)
+                    qualification_id = create_qualification(
+                        requirement_id, factory_id, template_id=template_id
+                    )
                     st.success(f"Qualification started. ID: {qualification_id}")
                     st.rerun()
                 except ValueError as error:

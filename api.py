@@ -288,16 +288,54 @@ from qualification import (
     DECISION_STATUSES,
     create_qualification,
     delete_qualification,
+    create_checklist_template,
+    delete_checklist_template,
+    get_checklist_template,
+    get_checklist_templates,
     get_qualification,
     get_qualifications,
     record_qualification_decision,
+    update_checklist_template,
     update_qualification_check,
 )
+
+
+class QualificationTemplateItemPayload(BaseModel):
+    check_key: str = Field(min_length=1, max_length=50)
+    title: str = Field(min_length=1, max_length=160)
+
+    @field_validator("check_key", "title")
+    @classmethod
+    def clean_template_item_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Checklist item key and title cannot be empty.")
+        return value
+
+
+class QualificationTemplatePayload(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=500)
+    items: list[QualificationTemplateItemPayload] = Field(min_length=1, max_length=30)
+
+    @field_validator("name")
+    @classmethod
+    def clean_template_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Template name cannot be empty.")
+        return value
+
+    @field_validator("description")
+    @classmethod
+    def clean_template_description(cls, value: str) -> str:
+        return value.strip()
 
 
 class CreateQualificationPayload(BaseModel):
     requirement_id: int = Field(gt=0)
     factory_id: int = Field(gt=0)
+    template_id: int | None = Field(default=None, gt=0)
 
 
 class QualificationCheckPayload(BaseModel):
@@ -327,12 +365,72 @@ class QualificationDecisionPayload(BaseModel):
         return value
 
 
+@app.get("/qualification-templates", tags=["Qualification Checklist Templates"])
+def list_qualification_templates():
+    return get_checklist_templates(db_path=DB_PATH)
+
+
+@app.post(
+    "/qualification-templates",
+    status_code=status.HTTP_201_CREATED,
+    tags=["Qualification Checklist Templates"],
+)
+def create_qualification_template(payload: QualificationTemplatePayload):
+    try:
+        template_id = create_checklist_template(
+            name=payload.name,
+            description=payload.description,
+            items=[item.model_dump() for item in payload.items],
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return get_checklist_template(template_id, db_path=DB_PATH)
+
+
+@app.get("/qualification-templates/{template_id}", tags=["Qualification Checklist Templates"])
+def read_qualification_template(template_id: int):
+    template = get_checklist_template(template_id, db_path=DB_PATH)
+    if template is None:
+        raise HTTPException(status_code=404, detail="Checklist template not found")
+    return template
+
+
+@app.put("/qualification-templates/{template_id}", tags=["Qualification Checklist Templates"])
+def edit_qualification_template(template_id: int, payload: QualificationTemplatePayload):
+    try:
+        template = update_checklist_template(
+            template_id=template_id,
+            name=payload.name,
+            description=payload.description,
+            items=[item.model_dump() for item in payload.items],
+            db_path=DB_PATH,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if template is None:
+        raise HTTPException(status_code=404, detail="Checklist template not found")
+    return template
+
+
+@app.delete("/qualification-templates/{template_id}", tags=["Qualification Checklist Templates"])
+def remove_qualification_template(template_id: int):
+    try:
+        deleted = delete_checklist_template(template_id, db_path=DB_PATH)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Checklist template not found")
+    return {"message": "Checklist template deleted", "template_id": template_id}
+
+
 @app.post("/qualifications", status_code=status.HTTP_201_CREATED, tags=["Second-Source Qualification"])
 def start_qualification(payload: CreateQualificationPayload):
     try:
         qualification_id = create_qualification(
             requirement_id=payload.requirement_id,
             factory_id=payload.factory_id,
+            template_id=payload.template_id,
             db_path=DB_PATH,
         )
     except ValueError as error:

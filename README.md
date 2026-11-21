@@ -14,6 +14,7 @@ LineFlex is an early-stage project exploring how manufacturers can prepare for p
 - Create, search, and edit production requirements with a part number, monthly demand, and required capability labels.
 - Keep a version history of requirement edits, including full snapshots and change notes.
 - Shortlist alternative factories for each requirement and record human decisions with rationale and history.
+- Create reusable qualification checklist templates and select a template when starting a second-source review.
 - Compare required machine, process, material, and certification labels against factory records.
 - See preliminary outcomes such as potential match, needs more data, capability gap, below stated capacity, and capacity-unit mismatch.
 - Use a Streamlit interface and FastAPI endpoints backed by SQLite.
@@ -78,6 +79,12 @@ Open:
 | PATCH | `/candidates/{candidate_id}/decision` | Record a human shortlist decision |
 | GET | `/candidates/{candidate_id}/decisions` | Read candidate decision history |
 | DELETE | `/candidates/{candidate_id}` | Remove a candidate from a shortlist |
+| GET | `/qualification-templates` | List saved qualification checklist templates |
+| POST | `/qualification-templates` | Create a reusable checklist template |
+| GET | `/qualification-templates/{template_id}` | Read a checklist template |
+| PUT | `/qualification-templates/{template_id}` | Update a custom checklist template |
+| DELETE | `/qualification-templates/{template_id}` | Delete a custom checklist template |
+| POST | `/qualifications` | Start a qualification with an optional `template_id` |
 
 ## Production requirement and capability matching
 
@@ -111,7 +118,6 @@ The automated suite covers factory CRUD, data-review metadata, requirement stora
 
 - Notifications and reminders for qualification reviews
 - Role-based approval permissions and authenticated reviewer identity
-- Reusable qualification checklist templates
 - More complete production flexibility scenario planning
 
 ## Current limitations
@@ -130,8 +136,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for project progress, [docs/PRODUCTION_RE
 
 ## Second-source qualification workflow
 
-- Start a qualification by linking one production requirement to one alternative factory.
-- Track seven review checks for engineering specifications, process capability, materials, quality/certifications, capacity/lead time, sample inspection, and customer approval.
+- Create reusable checklist templates for different part types or review workflows.
+- Start a qualification by linking one production requirement to one alternative factory and selecting a saved template; a standard seven-check template is supplied by default.
+- Each new qualification receives its own copy of the selected checklist, so later template edits do not change existing reviews.
+- Track review checks for engineering specifications, process capability, materials, quality/certifications, capacity/lead time, sample inspection, and customer approval.
 - Record check status, owner, due date, evidence reference, and review notes.
 - Move a fully completed checklist to `Ready for review`; this is not automatic approval.
 - Record a named human decision (`Approved`, `Rejected`, or `On hold`) with its rationale and retain decision history. Approval is blocked until every check is `Passed` or `Not applicable`.
