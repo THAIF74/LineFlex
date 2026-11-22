@@ -6,11 +6,14 @@ from database import add_factory, delete_factory
 from planning import add_production_requirement, delete_production_requirement
 from qualification import (
     CHECK_STATUSES,
+    create_checklist_template,
     create_qualification,
+    get_checklist_template,
     delete_qualification,
     get_qualification,
     get_qualifications,
     record_qualification_decision,
+    update_checklist_template,
     update_qualification_check,
 )
 
@@ -295,3 +298,128 @@ def test_api_rejects_approval_with_incomplete_checks(api_client):
 
 def test_api_missing_qualification_returns_404(api_client):
     assert api_client.get("/qualifications/999").status_code == 404
+
+
+
+def test_custom_checklist_template_can_be_selected_for_qualification(tmp_path):
+    db = tmp_path / "qualification.db"
+    requirement_id, factory_id = _setup(db)
+    template_id = create_checklist_template(
+        name="Aluminium Housing Review",
+        description="Review checks for machined aluminium housings.",
+        items=[
+            ("drawing_review", "Review the latest engineering drawing"),
+            ("material_traceability", "Confirm material grade and traceability"),
+            ("sample_inspection", "Review sample inspection results"),
+        ],
+        db_path=db,
+    )
+
+    template = get_checklist_template(template_id, db_path=db)
+    assert template["name"] == "Aluminium Housing Review"
+    assert len(template["items"]) == 3
+
+    qualification_id = create_qualification(
+        requirement_id,
+        factory_id,
+        db_path=db,
+        template_id=template_id,
+    )
+    qualification = get_qualification(qualification_id, db_path=db)
+    assert [item["check_key"] for item in qualification["checks"]] == [
+        "drawing_review",
+        "material_traceability",
+        "sample_inspection",
+    ]
+    assert qualification["checks_total"] == 3
+
+
+def test_template_edits_do_not_change_existing_qualification_snapshot(tmp_path):
+    db = tmp_path / "qualification.db"
+    requirement_id, factory_id = _setup(db)
+    template_id = create_checklist_template(
+        name="Casting Review",
+        description="Initial casting review.",
+        items=[("visual_review", "Inspect the casting surface")],
+        db_path=db,
+    )
+    qualification_id = create_qualification(
+        requirement_id, factory_id, db_path=db, template_id=template_id
+    )
+
+    update_checklist_template(
+        template_id,
+        name="Casting Review Updated",
+        description="Updated casting review.",
+        items=[
+            ("dimensional_review", "Review dimensional inspection"),
+            ("material_review", "Confirm material records"),
+        ],
+        db_path=db,
+    )
+
+    saved_qualification = get_qualification(qualification_id, db_path=db)
+    saved_template = get_checklist_template(template_id, db_path=db)
+    assert [item["title"] for item in saved_qualification["checks"]] == [
+        "Inspect the casting surface"
+    ]
+    assert len(saved_template["items"]) == 2
+
+
+def test_template_rejects_duplicate_item_keys(tmp_path):
+    db = tmp_path / "qualification.db"
+    with pytest.raises(ValueError, match="unique"):
+        create_checklist_template(
+            name="Duplicate Keys",
+            description="Invalid template.",
+            items=[
+                ("drawing_review", "First drawing check"),
+                ("DRAWING_REVIEW", "Second drawing check"),
+            ],
+            db_path=db,
+        )
+
+
+def test_standard_template_cannot_be_deleted(tmp_path):
+    db = tmp_path / "qualification.db"
+    from qualification import delete_checklist_template, get_checklist_templates
+
+    default_template = next(
+        item for item in get_checklist_templates(db_path=db) if item["is_default"]
+    )
+    with pytest.raises(ValueError, match="cannot be deleted"):
+        delete_checklist_template(default_template["id"], db_path=db)
+
+
+def test_api_can_create_template_and_start_qualification_with_it(api_client):
+    created_template = api_client.post(
+        "/qualification-templates",
+        json={
+            "name": "Precision Machining Review",
+            "description": "Checks for a precision-machined component.",
+            "items": [
+                {"check_key": "drawing_review", "title": "Review controlled drawing"},
+                {"check_key": "first_article", "title": "Review first-article results"},
+            ],
+        },
+    )
+    assert created_template.status_code == 201
+    template = created_template.json()
+    assert len(template["items"]) == 2
+
+    listed = api_client.get("/qualification-templates")
+    assert listed.status_code == 200
+    assert any(item["id"] == template["id"] for item in listed.json())
+
+    created_qualification = api_client.post(
+        "/qualifications",
+        json={
+            "requirement_id": api_client.requirement_id,
+            "factory_id": api_client.factory_id,
+            "template_id": template["id"],
+        },
+    )
+    assert created_qualification.status_code == 201
+    assert [
+        item["title"] for item in created_qualification.json()["checks"]
+    ] == ["Review controlled drawing", "Review first-article results"]

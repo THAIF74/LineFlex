@@ -5,6 +5,7 @@ factory being considered against a production requirement. It is a workflow
 tracker, not a certification or technical approval engine.
 """
 
+import re
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -71,6 +72,27 @@ def initialize_qualification_tables(db_path=DEFAULT_DB):
             )"""
         )
         conn.execute(
+            """CREATE TABLE IF NOT EXISTS qualification_checklist_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                description TEXT NOT NULL DEFAULT '',
+                is_default INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0, 1)),
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )"""
+        )
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS qualification_checklist_template_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                template_id INTEGER NOT NULL,
+                check_key TEXT NOT NULL,
+                title TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(template_id) REFERENCES qualification_checklist_templates(id) ON DELETE CASCADE,
+                UNIQUE(template_id, check_key)
+            )"""
+        )
+        conn.execute(
             """CREATE TABLE IF NOT EXISTS qualification_decisions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 qualification_id INTEGER NOT NULL,
@@ -82,19 +104,247 @@ def initialize_qualification_tables(db_path=DEFAULT_DB):
                 FOREIGN KEY(qualification_id) REFERENCES second_source_qualifications(id) ON DELETE CASCADE
             )"""
         )
+        default_template = conn.execute(
+            "SELECT id FROM qualification_checklist_templates WHERE is_default = 1"
+        ).fetchone()
+        if default_template is None:
+            cursor = conn.execute(
+                """INSERT INTO qualification_checklist_templates
+                   (name, description, is_default) VALUES (?, ?, 1)""",
+                (
+                    "Standard Second-Source",
+                    "General review checklist for a second-source manufacturing candidate.",
+                ),
+            )
+            default_template_id = cursor.lastrowid
+            conn.executemany(
+                """INSERT INTO qualification_checklist_template_items
+                   (template_id, check_key, title, sort_order) VALUES (?, ?, ?, ?)""",
+                [
+                    (default_template_id, key, title, index)
+                    for index, (key, title) in enumerate(DEFAULT_CHECKLIST)
+                ],
+            )
+        else:
+            item_count = conn.execute(
+                "SELECT COUNT(*) FROM qualification_checklist_template_items WHERE template_id = ?",
+                (default_template["id"],),
+            ).fetchone()[0]
+            if item_count == 0:
+                conn.executemany(
+                    """INSERT INTO qualification_checklist_template_items
+                       (template_id, check_key, title, sort_order) VALUES (?, ?, ?, ?)""",
+                    [
+                        (default_template["id"], key, title, index)
+                        for index, (key, title) in enumerate(DEFAULT_CHECKLIST)
+                    ],
+                )
         conn.commit()
     finally:
         conn.close()
 
 
-def create_qualification(requirement_id, factory_id, db_path=DEFAULT_DB):
-    """Start a qualification checklist for one factory/requirement pair."""
+def _clean_checklist_template(name, description, items):
+    name = str(name or "").strip()
+    description = str(description or "").strip()
+    if not name:
+        raise ValueError("Template name is required.")
+    if len(name) > 120 or len(description) > 500:
+        raise ValueError("Template name or description exceeds the allowed length.")
+    if not isinstance(items, (list, tuple)) or not items:
+        raise ValueError("A checklist template must contain at least one item.")
+    if len(items) > 30:
+        raise ValueError("A checklist template cannot contain more than 30 items.")
+
+    cleaned = []
+    seen = set()
+    for item in items:
+        if isinstance(item, dict):
+            key = item.get("check_key", item.get("key", ""))
+            title = item.get("title", "")
+        elif isinstance(item, (list, tuple)) and len(item) == 2:
+            key, title = item
+        else:
+            raise ValueError("Each checklist item must contain a key and title.")
+
+        key = str(key or "").strip().casefold()
+        title = str(title or "").strip()
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,49}", key):
+            raise ValueError(
+                "Checklist keys must start with a letter and contain only letters, numbers, or underscores."
+            )
+        if key in seen:
+            raise ValueError("Checklist item keys must be unique within a template.")
+        if not title or len(title) > 160:
+            raise ValueError("Each checklist item needs a title of 1 to 160 characters.")
+        seen.add(key)
+        cleaned.append((key, title))
+    return name, description, cleaned
+
+
+def _load_checklist_template(conn, row):
+    if row is None:
+        return None
+    template = dict(row)
+    template["items"] = [
+        dict(item)
+        for item in conn.execute(
+            """SELECT check_key, title, sort_order
+               FROM qualification_checklist_template_items
+               WHERE template_id = ? ORDER BY sort_order, id""",
+            (template["id"],),
+        ).fetchall()
+    ]
+    return template
+
+
+def get_checklist_templates(db_path=DEFAULT_DB):
+    initialize_qualification_tables(db_path)
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute(
+            """SELECT * FROM qualification_checklist_templates
+               ORDER BY is_default DESC, name COLLATE NOCASE, id"""
+        ).fetchall()
+        return [_load_checklist_template(conn, row) for row in rows]
+    finally:
+        conn.close()
+
+
+def get_checklist_template(template_id, db_path=DEFAULT_DB):
+    initialize_qualification_tables(db_path)
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM qualification_checklist_templates WHERE id = ?",
+            (template_id,),
+        ).fetchone()
+        return _load_checklist_template(conn, row)
+    finally:
+        conn.close()
+
+
+def get_default_checklist_template(db_path=DEFAULT_DB):
+    initialize_qualification_tables(db_path)
+    conn = _connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM qualification_checklist_templates WHERE is_default = 1"
+        ).fetchone()
+        return _load_checklist_template(conn, row)
+    finally:
+        conn.close()
+
+
+def create_checklist_template(name, description, items, db_path=DEFAULT_DB):
+    name, description, cleaned_items = _clean_checklist_template(
+        name, description, items
+    )
+    initialize_qualification_tables(db_path)
+    conn = _connect(db_path)
+    try:
+        cursor = conn.execute(
+            """INSERT INTO qualification_checklist_templates (name, description)
+               VALUES (?, ?)""",
+            (name, description),
+        )
+        template_id = cursor.lastrowid
+        conn.executemany(
+            """INSERT INTO qualification_checklist_template_items
+               (template_id, check_key, title, sort_order) VALUES (?, ?, ?, ?)""",
+            [
+                (template_id, key, title, index)
+                for index, (key, title) in enumerate(cleaned_items)
+            ],
+        )
+        conn.commit()
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        raise ValueError("A checklist template with this name already exists.") from exc
+    finally:
+        conn.close()
+    return template_id
+
+
+def update_checklist_template(template_id, name, description, items, db_path=DEFAULT_DB):
+    name, description, cleaned_items = _clean_checklist_template(
+        name, description, items
+    )
+    initialize_qualification_tables(db_path)
+    conn = _connect(db_path)
+    try:
+        existing = conn.execute(
+            "SELECT is_default FROM qualification_checklist_templates WHERE id = ?",
+            (template_id,),
+        ).fetchone()
+        if existing is None:
+            return None
+        if existing["is_default"]:
+            raise ValueError("The standard checklist template cannot be edited.")
+        conn.execute(
+            """UPDATE qualification_checklist_templates
+               SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (name, description, template_id),
+        )
+        conn.execute(
+            "DELETE FROM qualification_checklist_template_items WHERE template_id = ?",
+            (template_id,),
+        )
+        conn.executemany(
+            """INSERT INTO qualification_checklist_template_items
+               (template_id, check_key, title, sort_order) VALUES (?, ?, ?, ?)""",
+            [
+                (template_id, key, title, index)
+                for index, (key, title) in enumerate(cleaned_items)
+            ],
+        )
+        conn.commit()
+    except sqlite3.IntegrityError as exc:
+        conn.rollback()
+        raise ValueError("A checklist template with this name already exists.") from exc
+    finally:
+        conn.close()
+    return get_checklist_template(template_id, db_path=db_path)
+
+
+def delete_checklist_template(template_id, db_path=DEFAULT_DB):
+    initialize_qualification_tables(db_path)
+    conn = _connect(db_path)
+    try:
+        existing = conn.execute(
+            "SELECT is_default FROM qualification_checklist_templates WHERE id = ?",
+            (template_id,),
+        ).fetchone()
+        if existing is None:
+            return False
+        if existing["is_default"]:
+            raise ValueError("The standard checklist template cannot be deleted.")
+        cursor = conn.execute(
+            "DELETE FROM qualification_checklist_templates WHERE id = ?",
+            (template_id,),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def create_qualification(requirement_id, factory_id, db_path=DEFAULT_DB, template_id=None):
+    """Start a qualification using a saved checklist template snapshot."""
     if get_production_requirement(requirement_id, db_path=db_path) is None:
         raise ValueError("Production requirement was not found.")
     if get_factory_by_id(factory_id, db_path=db_path) is None:
         raise ValueError("Factory was not found.")
 
     initialize_qualification_tables(db_path)
+    template = (
+        get_checklist_template(template_id, db_path=db_path)
+        if template_id is not None
+        else get_default_checklist_template(db_path=db_path)
+    )
+    if template is None:
+        raise ValueError("Checklist template was not found.")
     conn = _connect(db_path)
     try:
         cursor = conn.execute(
@@ -106,7 +356,10 @@ def create_qualification(requirement_id, factory_id, db_path=DEFAULT_DB):
         conn.executemany(
             """INSERT INTO qualification_checks
                (qualification_id, check_key, title) VALUES (?, ?, ?)""",
-            [(qualification_id, key, title) for key, title in DEFAULT_CHECKLIST],
+            [
+                (qualification_id, item["check_key"], item["title"])
+                for item in template["items"]
+            ],
         )
         conn.commit()
         return qualification_id
